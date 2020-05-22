@@ -14,8 +14,8 @@
 
 ## Contributor
 
-@Xue Huangzhen (https://github.com/xuehzjing)
+Xue Huangzhen [@xuehzjing](https://github.com/xuehzjing)
 
-@Ge Qirui (https://github.com/iamgqr)
+Ge Qirui [@iamgqr](https://github.com/iamgqr)
 
-@Wang Kerong (https://github.com/FallCicada)
+Wang Kerong [@FallCicada](https://github.com/FallCicada)
