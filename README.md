@@ -14,8 +14,8 @@
 
 ## Contributor
 
-@xuehzjing
+@Xue Huangzhen (https://github.com/xuehzjing)
 
-@iamgqr
+@Ge Qirui (https://github.com/iamgqr)
 
 @
