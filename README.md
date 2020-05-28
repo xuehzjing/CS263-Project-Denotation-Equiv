@@ -19,4 +19,3 @@ Xue Huangzhen [@xuehzjing](https://github.com/xuehzjing)
 Ge Qirui [@iamgqr](https://github.com/iamgqr)
 
 Wang Kerong [@FallCicada](https://github.com/FallCicada)
-
