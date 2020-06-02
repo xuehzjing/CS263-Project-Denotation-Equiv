@@ -6,6 +6,13 @@
 >
 > Then, you need to prove the equivalence among three denotational program semantics and a small step semantics.
 
+## Compilation Order
+
+* Imp3.v
+* ImpExt4.v
+* DenotationalSemantics.v
+* SemEquivLemmas.v
+
 ## TODO
 
 - A theorem which can be used to prove the equivalence between two recursively defined semantics
