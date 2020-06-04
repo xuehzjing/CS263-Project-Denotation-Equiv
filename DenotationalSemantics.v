@@ -4,9 +4,64 @@ Require Import PL.Imp3.
 (** Definition of Denotational Semantics as Binary Relation
     (Begin States, Ending States). *)
 
+Inductive semantic (X: Type) :=
+  | Sem (skip_sem: X)
+        (asgn_sem: var -> aexp -> X)
+        (seq_sem: X -> X -> X)
+        (if_sem: bexp -> X -> X -> X)
+        (loop_sem: bexp -> X -> X).
+
+Arguments Sem {X} skip_sem asgn_sem seq_sem if_sem loop_sem.
+
+Definition semantic_skip {X: Type} (S: semantic X) := 
+  match S with
+  | Sem skip_sem _ _ _ _ => skip_sem
+  end.
+
+Definition semantic_asgn {X: Type} (S: semantic X) := 
+  match S with
+  | Sem _ asgn_sem _ _ _ => asgn_sem
+  end.
+
+Definition semantic_seq {X: Type} (S: semantic X) := 
+  match S with
+  | Sem _ _ seq_sem _ _ => seq_sem
+  end.
+
+Definition semantic_if {X: Type} (S: semantic X) := 
+  match S with
+  | Sem _ _ _ if_sem _ => if_sem
+  end.
+
+Definition semantic_loop {X: Type} (S: semantic X) := 
+  match S with
+  | Sem _ _ _ _ loop_sem => loop_sem
+  end.
+
+Fixpoint ceval_by_sem {T: Type} (S: semantic T)
+  (c : com) : T :=
+  match c with
+  | CSkip => semantic_skip S
+  | CAss X E => semantic_asgn S X E
+  | CSeq c1 c2 => semantic_seq S (ceval_by_sem S c1) (ceval_by_sem S c2)
+  | CIf b c1 c2 => semantic_if S b (ceval_by_sem S c1) (ceval_by_sem S c2)
+  | CWhile b c => semantic_loop S b (ceval_by_sem S c)
+  end.
+
 Module BinRel.
 
 Import Relation_Operators.
+
+Definition skip_sem: state -> state -> Prop := id.
+
+Definition asgn_sem (X: var) (E: aexp): state -> state -> Prop :=
+  fun st1 st2 =>
+    st2 X = aeval E st1 /\
+    forall Y, X <> Y -> st1 Y = st2 Y.
+
+Definition seq_sem (c1 c2: state -> state -> Prop)
+  : state -> state -> Prop
+:= concat c1 c2.
 
 Definition if_sem
   (b: bexp)
@@ -35,22 +90,14 @@ Definition loop_sem (b: bexp) (loop_body: state -> state -> Prop):
   state -> state -> Prop :=
   omega_union (iter_loop_body b loop_body).
 
-Fixpoint ceval (c: com): state -> state -> Prop :=
-  match c with
-  | CSkip => id
-  | CAss X E =>
-      fun st1 st2 =>
-        st2 X = aeval E st1 /\
-        forall Y, X <> Y -> st1 Y = st2 Y
-  | CSeq c1 c2 => concat (ceval c1) (ceval c2)
-  | CIf b c1 c2 => if_sem b (ceval c1) (ceval c2)
-  | CWhile b c => loop_sem b (ceval c)
-  end.
+Definition sem := Sem skip_sem asgn_sem seq_sem if_sem loop_sem.
+
+Definition ceval := ceval_by_sem sem.
 
 End BinRel.
 
 (** Definition of Denotational Semantics as Trinary Relation
-    (Begin States, Execution Time, Ending States). *)
+    (Begin States, Step Counts, Ending States). *)
 
 Module StepCnt.
 
@@ -111,14 +158,9 @@ Definition loop_sem (b: bexp) (loop_body: state -> Z -> state -> Prop)
 :=
   omega_union_sem (iter_loop_body b loop_body).
 
-Fixpoint ceval (c: com): state -> Z -> state -> Prop :=
-  match c with
-  | CSkip => skip_sem
-  | CAss X E => asgn_sem X E
-  | CSeq c1 c2 => seq_sem (ceval c1) (ceval c2)
-  | CIf b c1 c2 => if_sem b (ceval c1) (ceval c2)
-  | CWhile b c => loop_sem b (ceval c)
-  end.
+Definition sem := Sem skip_sem asgn_sem seq_sem if_sem loop_sem.
+
+Definition ceval := ceval_by_sem sem.
 
 End StepCnt.
 
@@ -186,13 +228,8 @@ Definition loop_sem (b: bexp) (loop_body: state -> list state -> state -> Prop)
 :=
   omega_union_sem (iter_loop_body b loop_body).
 
-Fixpoint ceval (c: com): state -> list state -> state -> Prop :=
-  match c with
-  | CSkip => skip_sem
-  | CAss X E => asgn_sem X E
-  | CSeq c1 c2 => seq_sem (ceval c1) (ceval c2)
-  | CIf b c1 c2 => if_sem b (ceval c1) (ceval c2)
-  | CWhile b c => loop_sem b (ceval c)
-  end.
+Definition sem := Sem skip_sem asgn_sem seq_sem if_sem loop_sem.
+
+Definition ceval := ceval_by_sem sem.
 
 End Trace.
