@@ -38,6 +38,69 @@ Definition semantic_loop {X: Type} (S: semantic X) :=
   | Sem _ _ _ _ loop_sem => loop_sem
   end.
 
+Inductive mid_param (A B: Type) :=
+  | MP (zero : B)
+       (one : A -> A -> B)
+       (add : B -> B -> B)
+       (add_zero_l : forall (x : B), add zero x = x)
+       (add_zero_r : forall (x : B), add x zero = x)
+       (add_assoc : forall (x y z : B), add (add x y) z = add x (add y z)).
+
+Arguments MP {A B}.
+
+Definition MP_zero {A B: Type} (mp: mid_param A B) := 
+  match mp with
+  | MP zero _ _ _ _ _ => zero
+  end.
+
+Definition MP_one {A B: Type} (mp: mid_param A B) := 
+  match mp with
+  | MP _ one _ _ _ _ => one
+  end.
+
+Definition MP_add {A B: Type} (mp: mid_param A B) := 
+  match mp with
+  | MP _ _ add _ _ _ => add
+  end.
+
+Lemma MP_MP_zero: forall {A B: Type} (mp: mid_param A B) zero one add add_zero_l add_zero_r add_assoc,
+  mp = MP zero one add add_zero_l add_zero_r add_assoc -> MP_zero mp = zero.
+Proof. intros. subst. reflexivity. Qed.
+
+Lemma MP_MP_one: forall {A B: Type} (mp: mid_param A B) zero one add add_zero_l add_zero_r add_assoc,
+  mp = MP zero one add add_zero_l add_zero_r add_assoc -> MP_one mp = one.
+Proof. intros. subst. reflexivity. Qed.
+
+Lemma MP_MP_add: forall {A B: Type} (mp: mid_param A B) zero one add add_zero_l add_zero_r add_assoc,
+  mp = MP zero one add add_zero_l add_zero_r add_assoc -> MP_add mp = add.
+Proof. intros. subst. reflexivity. Qed.
+
+Lemma MP_add_zero_l: forall {A B: Type} (mp: mid_param A B),
+  forall (x : B), MP_add mp (MP_zero mp) x = x.
+Proof. intros. destruct mp. simpl. apply add_zero_l. Qed.
+
+Lemma MP_add_zero_r: forall {A B: Type} (mp: mid_param A B),
+  forall (x : B), MP_add mp x (MP_zero mp) = x.
+Proof. intros. destruct mp. simpl. apply add_zero_r. Qed.
+
+Lemma MP_add_assoc: forall {A B: Type} (mp: mid_param A B),
+  forall (x y z : B), MP_add mp (MP_add mp x y) z = MP_add mp x (MP_add mp y z).
+Proof. intros. destruct mp. simpl. apply add_assoc. Qed.
+
+Definition Z_one (_ : state) (_ : state) : Z :=
+  1.
+
+Definition Z_mp := MP 0 Z_one Z.add Z.add_0_l Z.add_0_r Zplus_assoc_reverse.
+
+Definition List_one (_ : state) (st : state) : list state :=
+  (st :: nil).
+
+Definition List_mp := MP nil List_one
+                      (@List.app _)
+                      (@List.app_nil_l _)
+                      (@List.app_nil_r _)
+                      (@List.app_assoc_reverse _).
+
 Fixpoint ceval_by_sem {T: Type} (S: semantic T)
   (c : com) : T :=
   match c with
@@ -47,6 +110,26 @@ Fixpoint ceval_by_sem {T: Type} (S: semantic T)
   | CIf b c1 c2 => semantic_if S b (ceval_by_sem S c1) (ceval_by_sem S c2)
   | CWhile b c => semantic_loop S b (ceval_by_sem S c)
   end.
+
+Lemma ceval_CSkip: forall {T: Type} (S: semantic T),
+  ceval_by_sem S CSkip = semantic_skip S.
+Proof. intros. simpl. reflexivity. Qed.
+
+Lemma ceval_CAss: forall {T: Type} (S: semantic T) X E,
+  ceval_by_sem S (CAss X E) = semantic_asgn S X E.
+Proof. intros. simpl. reflexivity. Qed.
+
+Lemma ceval_CSeq: forall {T: Type} (S: semantic T) c1 c2,
+  ceval_by_sem S (c1 ;; c2) = semantic_seq S (ceval_by_sem S c1) (ceval_by_sem S c2).
+Proof. intros. simpl. reflexivity. Qed.
+
+Lemma ceval_CIf: forall {T: Type} (S: semantic T) b c1 c2,
+  ceval_by_sem S (CIf b c1 c2) = semantic_if S b (ceval_by_sem S c1) (ceval_by_sem S c2).
+Proof. intros. simpl. reflexivity. Qed.
+
+Lemma ceval_CWhile: forall {T: Type} (S: semantic T) b c,
+  ceval_by_sem S (While b Do c EndWhile) = semantic_loop S b (ceval_by_sem S c).
+Proof. intros. simpl. reflexivity. Qed.
 
 Module BinRel.
 
@@ -94,33 +177,11 @@ Definition sem := Sem skip_sem asgn_sem seq_sem if_sem loop_sem.
 
 Definition ceval := ceval_by_sem sem.
 
-Lemma ceval_CSkip: ceval CSkip = id.
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CAss: forall X E,
-  ceval (CAss X E) =
-    fun st1 st2 =>
-      st2 X = aeval E st1 /\
-        forall Y, X <> Y -> st1 Y = st2 Y.
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CSeq: forall c1 c2,
-  ceval (c1 ;; c2) = concat (ceval c1) (ceval c2).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CIf: forall b c1 c2,
-  ceval (CIf b c1 c2) = if_sem b (ceval c1) (ceval c2).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CWhile: forall b c,
-  ceval (While b Do c EndWhile) = loop_sem b (ceval c).
-Proof. intros. simpl. reflexivity. Qed.
-
 Theorem loop_unrolling : forall b c st1 st2,
   ceval (While b Do c EndWhile) st1 st2 <->
   ceval (If b Then (c ;; While b Do c EndWhile) Else Skip EndIf) st1 st2.
 Proof.
-  intros.
+  intros. unfold ceval.
   rewrite ceval_CIf, ceval_CSeq, ceval_CSkip.
   rewrite ceval_CWhile.
   apply loop_sem_unrolling.
@@ -131,95 +192,75 @@ End BinRel.
 (** Definition of Denotational Semantics as Trinary Relation
     (Begin States, Execution Time, Ending States). *)
 
-Module StepCnt.
+Module TerSem.
 
-Definition skip_sem: state -> Z -> state -> Prop :=
+Definition skip_sem {T: Type} (mp: mid_param state T)
+  : state -> T -> state -> Prop :=
   fun st1 t st2 =>
-    st1 = st2 /\ t = 0.
+    st1 = st2 /\ t = MP_zero mp.
 
-Definition asgn_sem (X: var) (E: aexp): state -> Z -> state -> Prop :=
+Definition asgn_sem {T: Type} (mp: mid_param state T) (X: var) (E: aexp)
+  : state -> T -> state -> Prop :=
   fun st1 t st2 =>
     st2 X = aeval E st1 /\
-    forall Y, X <> Y -> st1 Y = st2 Y /\
-    t = 1.
+    (forall Y, X <> Y -> st1 Y = st2 Y) /\
+    t = MP_one mp st1 st2.
 
-Definition seq_sem (d1 d2: state -> Z -> state -> Prop)
-  : state -> Z -> state -> Prop
+Definition seq_sem {T: Type} (mp: mid_param state T) (d1 d2: state -> T -> state -> Prop)
+  : state -> T -> state -> Prop
 :=
   fun st1 t st3 =>
     exists t1 t2 st2,
-      d1 st1 t1 st2 /\ d2 st2 t2 st3 /\ t = t1 + t2.
+      d1 st1 t1 st2 /\ d2 st2 t2 st3 /\ t = MP_add mp t1 t2.
 
-Definition test_sem (X: state -> Prop): state -> Z -> state -> Prop :=
+Definition test_sem {T: Type} (mp: mid_param state T) (X: state -> Prop): state -> T -> state -> Prop :=
   fun st1 t st2 =>
-    st1 = st2 /\ X st1 /\ t = 1.
+    st1 = st2 /\ X st1 /\ t = MP_one mp st1 st2.
 
-Definition union_sem (d d': state -> Z -> state -> Prop)
-  : state -> Z -> state -> Prop
+Definition union_sem {T: Type} (mp: mid_param state T) (d d': state -> T -> state -> Prop)
+  : state -> T -> state -> Prop
 :=
   fun st1 t st2 =>
     d st1 t st2 \/ d' st1 t st2.
 
-Definition if_sem (b: bexp) (d1 d2: state -> Z -> state -> Prop)
-  : state -> Z -> state -> Prop
+Definition if_sem {T: Type} (mp: mid_param state T) (b: bexp) (d1 d2: state -> T -> state -> Prop)
+  : state -> T -> state -> Prop
 :=
-  union_sem
-    (seq_sem (test_sem (beval b)) d1)
-    (seq_sem (test_sem (beval (! b))) d2).
+  union_sem mp
+    (seq_sem mp (test_sem mp (beval b)) d1)
+    (seq_sem mp (test_sem mp (beval (! b))) d2).
 
-Fixpoint iter_loop_body
+Fixpoint iter_loop_body {T: Type} (mp: mid_param state T)
   (b: bexp)
-  (loop_body: state -> Z -> state -> Prop)
+  (loop_body: state -> T -> state -> Prop)
   (n: nat)
-  : state -> Z -> state -> Prop
+  : state -> T -> state -> Prop
 :=
   match n with
-  | O => test_sem (beval (! b))
-  | S n' => seq_sem
-              (test_sem (beval b))
-              (seq_sem loop_body (iter_loop_body b loop_body n'))
+  | O => test_sem mp (beval (! b))
+  | S n' => seq_sem mp
+              (test_sem mp (beval b))
+              (seq_sem mp loop_body (iter_loop_body mp b loop_body n'))
   end.
 
-Definition omega_union_sem (d: nat -> state -> Z -> state -> Prop)
-  : state -> Z -> state -> Prop
+Definition omega_union_sem {T: Type} (mp: mid_param state T) (d: nat -> state -> T -> state -> Prop)
+  : state -> T -> state -> Prop
 :=
   fun st1 t st2 => exists n, d n st1 t st2.
 
-Definition loop_sem (b: bexp) (loop_body: state -> Z -> state -> Prop)
-  : state -> Z -> state -> Prop
+Definition loop_sem {T: Type} (mp: mid_param state T) (b: bexp) (loop_body: state -> T -> state -> Prop)
+  : state -> T -> state -> Prop
 :=
-  omega_union_sem (iter_loop_body b loop_body).
+  omega_union_sem mp (iter_loop_body mp b loop_body).
 
-Definition sem := Sem skip_sem asgn_sem seq_sem if_sem loop_sem.
+Definition sem {T: Type} (mp: mid_param state T)
+:= Sem (skip_sem mp) (asgn_sem mp) (seq_sem mp) (if_sem mp) (loop_sem mp).
 
-Definition ceval := ceval_by_sem sem.
+Definition ceval {T: Type} (mp: mid_param state T) := ceval_by_sem (sem mp).
 
-Lemma ceval_CSkip: ceval CSkip = skip_sem.
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CAss: forall X E,
-  ceval (CAss X E) =
-    fun st1 z st2 =>
-      st2 X = aeval E st1 /\
-        forall Y, X <> Y -> st1 Y = st2 Y /\
-        z = 1.
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CSeq: forall c1 c2,
-  ceval (c1 ;; c2) = seq_sem (ceval c1) (ceval c2).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CIf: forall b c1 c2,
-  ceval (CIf b c1 c2) = if_sem b (ceval c1) (ceval c2).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CWhile: forall b c,
-  ceval (While b Do c EndWhile) = loop_sem b (ceval c).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma loop_sem_unrolling: forall b (R: state -> Z -> state -> Prop) st1 z st2,
-  loop_sem b R st1 z st2 <-> 
-  if_sem b (seq_sem R (loop_sem b R)) skip_sem st1 z st2.
+Lemma loop_sem_unrolling: forall {T: Type} (mp: mid_param state T) b (R: state -> T -> state -> Prop) st1 x st2,
+  loop_sem mp b R st1 x st2 <-> 
+  if_sem mp b (seq_sem mp R (loop_sem mp b R)) (skip_sem mp) st1 x st2.
 Proof.
   split; intros.
   + unfold loop_sem, omega_union_sem in H.
@@ -229,167 +270,15 @@ Proof.
       unfold if_sem, seq_sem.
       right; simpl.
       unfold skip_sem.
-      exists z, 0, st2; split; [exact H | split; [tauto | lia]].
-    - simpl in H.
-      unfold if_sem, seq_sem.
-      left.
-      unfold seq_sem in H.
-      destruct H as [z1 [z2 [st1' [[Hst [Hb Hz1]] H]]]].
-      destruct H as [[z3 [z4 [st3 [Hc [Hiter Hz3]]]]] Hz2].
-      subst z1 z2 z st1'.
-      exists 1, (z3 + z4), st1; split; [unfold test_sem; tauto | split; [| lia]].
-      exists z3, z4, st3; split; [tauto | split; [| lia]].
-      unfold loop_sem, omega_union_sem.
-      exists n.
-      exact Hiter.
-  + unfold if_sem, seq_sem in H.
-    unfold loop_sem, omega_union_sem.
-    destruct H.
-    2: {
-      exists O.
-      simpl.
-      unfold skip_sem in H.
-      destruct H as [z1 [z2 [st2' [[Hst [Hb Hz1]] [[Hst2 Hz2] Hz]]]]].
-      subst z1 z2 z st2' st2.
-      unfold test_sem.
-      split; [tauto | split; [tauto | lia]].
-    }
-    destruct H as [z1 [z2 [st1' [[Hst [Hb Hz1]] H]]]].
-    destruct H as [[z3 [z4 [st3 [Hc [Hiter Hz3]]]]] Hz2].
-    subst z1 z2 z st1'.
-    unfold loop_sem, omega_union_sem in Hiter.
-    destruct Hiter as [n Hiter].
-    exists (S n).
-    simpl.
-    unfold seq_sem.
-    exists 1, (z3 + z4), st1; split; [unfold test_sem; tauto | split; [| tauto]].
-    exists z3, z4, st3; tauto.
-Qed.
-
-Theorem loop_unrolling : forall b c z st1 st2,
-  ceval (While b Do c EndWhile) st1 z st2 <->
-  ceval (If b Then (c ;; While b Do c EndWhile) Else Skip EndIf) st1 z st2.
-Proof.
-  intros.
-  rewrite ceval_CIf, ceval_CSeq, ceval_CSkip.
-  rewrite ceval_CWhile.
-  apply loop_sem_unrolling.
-Qed.
-
-End StepCnt.
-
-(** Definition of Denotational Semantics as Trinary Relation 
-    (Begin States, Intermediate Traces, Ending States).
-    For conciseness, we assume that an intermediate state trace does not include
-    the beginning state but includes the ending state. *)
-
-Module Trace.
-
-Definition skip_sem: state -> list state -> state -> Prop :=
-  fun st1 tr st2 =>
-    st1 = st2 /\ tr = nil.
-
-Definition asgn_sem (X: var) (E: aexp): state -> list state -> state -> Prop :=
-  fun st1 tr st2 =>
-    st2 X = aeval E st1 /\
-    forall Y, X <> Y -> st1 Y = st2 Y /\
-    tr = st2 :: nil.
-
-Definition seq_sem (d1 d2: state -> list state -> state -> Prop)
-  : state -> list state -> state -> Prop
-:=
-  fun st1 tr st3 =>
-    exists tr1 tr2 st2,
-      d1 st1 tr1 st2 /\ d2 st2 tr2 st3 /\ tr = tr1 ++ tr2.
-
-Definition test_sem (X: state -> Prop): state -> list state -> state -> Prop :=
-  fun st1 tr st2 =>
-    st1 = st2 /\ tr = st1 :: nil /\ X st1.
-
-Definition union_sem (d d': state -> list state -> state -> Prop)
-  : state -> list state -> state -> Prop
-:=
-  fun st1 tr st2 =>
-    d st1 tr st2 \/ d' st1 tr st2.
-
-Definition if_sem (b: bexp) (d1 d2: state -> list state -> state -> Prop)
-  : state -> list state -> state -> Prop
-:=
-  union_sem
-    (seq_sem (test_sem (beval b)) d1)
-    (seq_sem (test_sem (beval (! b))) d2).
-
-Fixpoint iter_loop_body
-  (b: bexp)
-  (loop_body: state -> list state -> state -> Prop)
-  (n: nat)
-  : state -> list state -> state -> Prop
-:=
-  match n with
-  | O => test_sem (beval (! b))
-  | S n' => seq_sem
-              (test_sem (beval b))
-              (seq_sem loop_body (iter_loop_body b loop_body n'))
-  end.
-
-Definition omega_union_sem (d: nat -> state -> list state -> state -> Prop)
-  : state -> list state -> state -> Prop
-:=
-  fun st1 tr st2 => exists n, d n st1 tr st2.
-
-Definition loop_sem (b: bexp) (loop_body: state -> list state -> state -> Prop)
-  : state -> list state -> state -> Prop
-:=
-  omega_union_sem (iter_loop_body b loop_body).
-
-Definition sem := Sem skip_sem asgn_sem seq_sem if_sem loop_sem.
-
-Definition ceval := ceval_by_sem sem.
-
-Lemma ceval_CSkip: ceval CSkip = skip_sem.
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CAss: forall X E,
-  ceval (CAss X E) =
-    fun st1 l st2 =>
-      st2 X = aeval E st1 /\
-        forall Y, X <> Y -> st1 Y = st2 Y /\
-        l = st2 :: nil.
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CSeq: forall c1 c2,
-  ceval (c1 ;; c2) = seq_sem (ceval c1) (ceval c2).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CIf: forall b c1 c2,
-  ceval (CIf b c1 c2) = if_sem b (ceval c1) (ceval c2).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma ceval_CWhile: forall b c,
-  ceval (While b Do c EndWhile) = loop_sem b (ceval c).
-Proof. intros. simpl. reflexivity. Qed.
-
-Lemma loop_sem_unrolling: forall b (R: state -> list state -> state -> Prop) st1 l st2,
-  loop_sem b R st1 l st2 <-> 
-  if_sem b (seq_sem R (loop_sem b R)) skip_sem st1 l st2.
-Proof.
-  split; intros.
-  + unfold loop_sem, omega_union_sem in H.
-    destruct H as [n ?].
-    destruct n.
-    - simpl in H.
-      unfold if_sem, seq_sem.
-      right; simpl.
-      unfold skip_sem.
-      exists l, nil, st2; split; [exact H | split; [tauto | apply app_nil_end]].
+      exists x, (MP_zero mp), st2; split; [exact H | split; [tauto | rewrite (MP_add_zero_r mp); reflexivity]].
     - simpl in H.
       unfold if_sem, seq_sem.
       left.
       unfold seq_sem in H.
       destruct H as [l1 [l2 [st1' [[Hst [Hb Hl1]] H]]]].
       destruct H as [[l3 [l4 [st3 [Hc [Hiter Hl3]]]]] Hl2].
-      subst l1 l2 l st1'.
-      exists (st1 :: nil), (l3 ++ l4), st1; split;
+      subst l1 l2 x st1'.
+      exists (MP_one mp st1 st1), (MP_add mp l3 l4), st1; split;
         [unfold test_sem; tauto | split; [| reflexivity]].
       exists l3, l4, st3; split; [tauto | split; [| reflexivity]].
       unfold loop_sem, omega_union_sem.
@@ -403,31 +292,51 @@ Proof.
       simpl.
       unfold skip_sem in H.
       destruct H as [l1 [l2 [st2' [[Hst [Hb Hl1]] [[Hst2 Hl2] Hl]]]]].
-      subst l1 l2 l st2' st2.
+      subst l1 l2 x st2' st2.
       unfold test_sem.
-      split; [tauto | split; [reflexivity | tauto]].
+      split; [tauto | split; [ apply Hb | apply (MP_add_zero_r mp)]].
     }
     destruct H as [l1 [l2 [st1' [[Hst [Hb Hl1]] H]]]].
     destruct H as [[l3 [l4 [st3 [Hc [Hiter Hl3]]]]] Hl2].
-    subst l1 l2 l st1'.
+    subst l1 l2 x st1'.
     unfold loop_sem, omega_union_sem in Hiter.
     destruct Hiter as [n Hiter].
     exists (S n).
     simpl.
     unfold seq_sem.
-    exists (st1 :: nil), (l3 ++ l4), st1;
+    exists (MP_one mp st1 st1), (MP_add mp l3 l4), st1;
       split; [unfold test_sem; tauto | split; [| tauto]].
     exists l3, l4, st3; tauto.
 Qed.
 
-Theorem loop_unrolling : forall b c z st1 st2,
-  ceval (While b Do c EndWhile) st1 z st2 <->
-  ceval (If b Then (c ;; While b Do c EndWhile) Else Skip EndIf) st1 z st2.
+Theorem loop_unrolling : forall {T: Type} (mp: mid_param state T) b c z st1 st2,
+  ceval mp (While b Do c EndWhile) st1 z st2 <->
+  ceval mp (If b Then (c ;; While b Do c EndWhile) Else Skip EndIf) st1 z st2.
 Proof.
   intros.
+  unfold ceval.
   rewrite ceval_CIf, ceval_CSeq, ceval_CSkip.
   rewrite ceval_CWhile.
   apply loop_sem_unrolling.
 Qed.
+
+End TerSem.
+
+Module StepCnt.
+
+Definition ceval := TerSem.ceval Z_mp.
+Definition loop_unrolling := TerSem.loop_unrolling Z_mp.
+
+End StepCnt.
+
+(** Definition of Denotational Semantics as Trinary Relation 
+    (Begin States, Intermediate Traces, Ending States).
+    For conciseness, we assume that an intermediate state trace does not include
+    the beginning state but includes the ending state. *)
+
+Module Trace.
+
+Definition ceval := TerSem.ceval List_mp.
+Definition loop_unrolling := TerSem.loop_unrolling List_mp.
 
 End Trace.
