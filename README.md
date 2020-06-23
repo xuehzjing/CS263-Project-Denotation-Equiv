@@ -12,24 +12,6 @@ Part of the codes used in this project is borrowed from class materials.
 >
 > Then, you need to prove the equivalence among three denotational program semantics and a small step semantics.
 
-<<<<<<< HEAD
-## Compilation Order
-
-1. ImpExt4.v
-2. Imp3.v
-3. DenotationalSemantics.v
-4. DenotationalSemEquiv.v
-
-## TODO
-
-- Prove the theorem which can be used to prove the equivalence between a recursively defined semantics and a small step semantics.
-
-## Done
-
-- Prove a general theorem used to prove an equivalence between two recursively defined semantics.
-- Prove the equivalence between three denotational  semantics.
-- Prove the equivalence between three denotational semantics ( *plain binary relation, one with time, one with trace* ) and a small step semantics.
-=======
 
 
 ## Compilation Order
@@ -42,17 +24,12 @@ Part of the codes used in this project is borrowed from class materials.
 6. SmallStepSemEquiv.v
 
 
->>>>>>> c5f618c7f1e5ba9c8f15ceb3b829fe36b2e40999
 
 ## Proof Idea
 
 - DenotationalSemantics.v
 
-<<<<<<< HEAD
-  We define three denotational program semantics, which are based on the project instruction. However we also make some modification.
-=======
   We define three denotational program semantics, which are based on the project instruction. However we also make some slight modification.
->>>>>>> c5f618c7f1e5ba9c8f15ceb3b829fe36b2e40999
 
   First, we define a general recursively defined denotational semantic, which has five basic commands *(skip, assignment, sequence, if, while)*. A program's semantic is recursively defined on the semantic of the five basic commands.
 
@@ -60,23 +37,6 @@ Part of the codes used in this project is borrowed from class materials.
 
 - DenotationalSemEquiv.v
 
-<<<<<<< HEAD
-  - Denotation
-
-    We raise and prove a general theorem to prove an equivalence between two recursively defined semantics. We use it to prove the equivalence between three denotational semantics defined in DenotationalSemantics.v.
-
-    First, we define the equivalence of five basic commands between two recursively defined semantics.
-
-    Next, we put forward and prove the general theorem for equivalence between them.
-
-    Then, we prove the equivalence of five basic commands between two concrete semantics defined in DenotationalSemantics.v.
-  
-    At last, we apply the general theorem and finish the proof.
-  
-  - Denotation V.S. Small Step
-  
-    We give a general theorem and use it to prove the equivalence between denotational semantics and small step semantics.
-=======
   We raise and prove a general theorem to prove an equivalence between two recursively defined semantics. We use it to prove the equivalence between three denotational semantics defined in DenotationalSemantics.v.
 
   First, we define the equivalence of five basic commands between two recursively defined semantics.
@@ -104,7 +64,6 @@ Part of the codes used in this project is borrowed from class materials.
     As it takes an amount of time to find the final result, here we note that the final theorem of the equivalence of binary semantics is at **Line 579**, and ternary semantics is at **Line 845**.
 
     
->>>>>>> c5f618c7f1e5ba9c8f15ceb3b829fe36b2e40999
 
 ## Contributor
 
