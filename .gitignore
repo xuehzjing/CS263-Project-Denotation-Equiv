@@ -20,6 +20,7 @@
 *.vo
 *.vok
 *.vos
+*.zip
 .coq-native/
 .csdp.cache
 .lia.cache
